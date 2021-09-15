@@ -119,6 +119,43 @@ func (this *ExplorerSessions) getSessions() (sesData []map[string]string, err er
 	return sesData, nil
 }
 
+func (this *ExplorerSessions) getProcesses() (procID map[string]string, err error) {
+	procData := []map[string]string{}
+	procID = make (map[string]string)
+
+	param := []string{}
+	if this.settings.RAC_Host() != "" {
+		param = append(param, strings.Join(appendParam([]string{ this.settings.RAC_Host() }, this.settings.RAC_Port()), ":"))
+	}
+
+	param = append(param, "process")
+	param = append(param, "list")
+	if login := this.settings.RAC_Login(); login != "" {
+		param = append(param, fmt.Sprintf("--cluster-user=%v", login))
+		if pwd := this.settings.RAC_Pass(); pwd != "" {
+			param = append(param, fmt.Sprintf("--cluster-pwd=%v", pwd))
+		}
+	}
+
+	param = append(param, fmt.Sprintf("--cluster=%v", this.GetClusterID()))
+
+	cmdCommand := exec.Command(this.settings.RAC_Path(), param...)
+	if result, err := this.run(cmdCommand); err != nil {
+		logrusRotate.StandardLogger().WithField("Name", this.GetName()).WithError(err).Error()
+		return map[string]string{}, err
+	} else {
+		this.formatMultiResult(result, &procData)
+	}
+
+    for n := 0; n < len(procData); n++ {
+			procID[procData[n]["process"]] = procData[n]["pid"]
+	}
+
+
+	return procID, nil
+}
+
+
 func (this *ExplorerSessions) GetName() string {
 	return "Session"
 }
